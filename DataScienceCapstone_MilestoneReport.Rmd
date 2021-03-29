@@ -1,0 +1,202 @@
+---
+title: "Data Science Capstone - Milestone Report"
+author: "holliPista"
+date: '2021 03 29 '
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(vroom)
+library(stringr)
+library(stringi)
+library(dplyr)
+library(tidyr)
+library(tidytext)
+library(ggplot2)
+library(tm)
+library(wordcloud2)
+library(igraph)
+library(ggraph)
+```
+
+### Marco... Polo! - What is this about?
+
+Here you can read my Milestone report for Data Science Capstone Project on Coursera. 
+
+In the following weeks I build a predictive model and a web application based on that: this model will try to predict the next word of any given word - that's called text prediction. Till now I
+
+* Got and cleaned the data,
+* Carried out some exploratory analysis,
+* Built a basic model (Markov chain, see below).
+
+### Getting the data
+
+You can find the training dataset on the following [link](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip) but the code chunk below will download and unpack it if you do not have yet.
+
+```{r getdata}
+url<-"https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+if(!file.exists("Coursera-SwiftKey.zip")) {
+  download.file(url,"Coursera-SwiftKey.zip","curl")} #download if not exist
+
+
+if(file.exists("final")) {
+  size_files <- list.files("final/en_US",full.names = T) %>% 
+    sapply(file.size) %>% 
+    sum()
+}else{
+  size_files=0
+} #check if it's unpacked and unzip if necessary
+if(size_files==0) {
+  unzip("Coursera-SwiftKey.zip", files = NULL, list = FALSE, overwrite = TRUE,
+        junkpaths = FALSE, exdir = ".", unzip = "internal", setTimes = FALSE)}
+
+files <- list.files(path="final/en_US/", pattern="*.txt", full.names=TRUE, 
+                    recursive=FALSE) #get file list
+```                    
+
+Now we have to take a look on the data. It's crucial in order to tell if we can use it as is or rather use a sample of it. The most important attribution is the file size as it refers to the memory demand but we also check the number of posts (ie. rows) and the gross total count of words (ie. tokens).
+Notice that I use binomial reading mode to eliminate line brake warnings and set encoding to utf-8 as a result of character encoding issue on my environment.
+
+```{r load and describe, cache=TRUE}
+con <- file("./final/en_US/en_US.blogs.txt", "rb", encoding="utf-8") 
+EnBlogs<- readLines(con, encoding = "UTF-8", skipNul = TRUE)
+close(con)
+EnBlogsStat <- c(stri_stats_general(EnBlogs)[1],  stri_stats_latex(EnBlogs)[4], file.info("./final/en_US/en_US.blogs.txt")$size/(2^20))
+
+con <- file("./final/en_US/en_US.news.txt", "rb", encoding="utf-8") 
+EnNews<- readLines(con, encoding = "UTF-8", skipNul = TRUE)
+close(con)
+EnNewsStat <- c(stri_stats_general(EnNews)[1],  stri_stats_latex(EnNews)[4], file.info("./final/en_US/en_US.news.txt")$size/(2^20))
+
+con <- file("./final/en_US/en_US.twitter.txt", "rb", encoding="utf-8") 
+EnTwitter<- readLines(con, encoding = "UTF-8", skipNul = TRUE)
+close(con)
+EnTwitterStat <- c(stri_stats_general(EnTwitter)[1],  stri_stats_latex(EnTwitter)[4], file.info("./final/en_US/en_US.twitter.txt")$size/(2^20))
+
+EnTotalStat <- EnBlogsStat+EnNewsStat+EnTwitterStat
+Stat<-as.data.frame(rbind(EnBlogsStat,EnNewsStat,EnTwitterStat,EnTotalStat))
+colnames(Stat)[3] <- "Size (MB)"
+rownames(Stat)<- c("Blogs","News","Twitter posts","Total")
+print(Stat)
+```
+Wow! It's a lot of data! We should have a sample of that if we want to reduce the run time to a considerable level. We have 4,269,678 rows (that number has stored in EnTotalStat variable). Let's build a sample of 50,000 posts, which is about 1%, used binomial random choice.
+
+```{r sampling, cache=TRUE, warning=FALSE}
+sample<-vector(mode="character")
+#SourceFileName<-vector(mode="character")
+n<-50000  #set sample size
+
+for (SourceFile in files){
+  con <- file(SourceFile, "rb", encoding="utf-8") 
+  open(con)
+
+  line <- readLines(con, n=1, encoding="UTF-8", skipNul = TRUE)
+  while(length(line) > 0) {
+    line<-readLines(con, 1, encoding="UTF-8", skipNul = TRUE)
+    random<-rbinom(1,1,n/EnTotalStat[1]) #define binomial random with n/N
+    if(random==1){
+      sample<-append(sample,line)
+      #SourceFileName<-gsub(".txt","",str_split(SourceFile, "/", simplify = TRUE)[3])
+      #With the row above you can make a vector to store the source file for each rows, supposed you defined        #SourceFileName as vector at the top of the code chunk. 
+    }
+  }
+  close(con)
+}
+```
+### Cleaning the data and Exploratory Data Analysis
+#### including some modeling 
+
+Now we have an almost ready to use data set, the only thing left is the data cleaning. I use tidytext package (and tidy tools) mainly for that task and also for data exploration. I do some exploratory analysis inserted into the cleaning process. The steps are basically:
+
+* Remove numbers, punctuation, brackets (excepted apostrophe),
+* Tokenization, 
+* Remove stop words (eg. “a”, “the”, “is”, “are”)
+* Remove profanity (supposed that we don't want to predict them:-)) ([source](https://www.cs.cmu.edu/~biglou/resources/))
+* Show some basic statistics of the corpus based on that.
+
+You can see I use tibble objects. Tibbles are data frames, but they tweak some older behaviours to make life a little easier. See more [here](https://tibble.tidyverse.org/).
+
+#### Unigrams
+```{r unigram clean}
+StopWords<-tibble(stop_words)
+text_df <- tibble(line = 1:length(sample), text = sample)
+
+unigram <- mutate(text_df, text = gsub(x = text, 
+                    pattern = "[0-9]+|(?!')[[:punct:]]|\\(.*\\)", 
+                    replacement = "", perl=TRUE)) %>%
+  unnest_tokens(input = text, output = word) %>%
+  anti_join(StopWords,by="word") %>%
+  mutate(word=gsub("\\'","",word))
+
+url<-"https://www.cs.cmu.edu/~biglou/resources/bad-words.txt"
+if(!file.exists("bad-words.txt")) {download.file(url = url, destfile = "./bad-words.txt")}
+con<- file("bad-words.txt", "rb")
+profanity <- readLines(con)
+close(con)
+
+profanity <- tibble(profanity) %>%
+  rename(word = profanity)
+unigram<-anti_join(unigram,profanity,by="word")
+```
+The most frequent unigrams on a classic ggplot chart and also on a fancy [wordcloud2](https://www.r-graph-gallery.com/196-the-wordcloud2-library.html) cloud.
+```{r unigram chart}
+unigram %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 500) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word)) +
+  geom_col() +
+  labs(y = NULL)
+
+words <- unigram %>% count(word, sort=TRUE)
+wordcloud2(data=words, size=1.6, color='random-dark')
+```
+
+#### Bigrams
+```{r bigram clean, warning=FALSE}
+bigram <- mutate(text_df, text = gsub(x = text, 
+                      pattern = "[0-9]+|(?!')[[:punct:]]|\\(.*\\)", 
+                      replacement = "", perl=TRUE)) %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2)
+
+#bigram %>% count(bigram, sort = TRUE) #here I disregard to show simple frequency table of bigrams
+
+bigrams_separated <- bigram %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+
+bigrams_filtered <- bigrams_separated %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word)
+
+bigram_counts <- bigrams_filtered %>% 
+  count(word1, word2, sort = TRUE)
+
+bigrams_united <- bigrams_filtered %>%
+  unite(bigram, word1, word2, sep = " ")
+
+bigram_graph <- bigram_counts %>%
+  filter(n > 20) %>%
+  graph_from_data_frame()
+
+a <- grid::arrow(type = "closed", length = unit(.15, "inches"))
+
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n), show.legend = FALSE,
+                 arrow = a, end_cap = circle(.07, 'inches')) +
+  geom_node_point(color = "lightblue", size = 5) +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+  theme_void()
+```
+
+Note that this is a visualization of a Markov chain, a common model in text processing. In a Markov chain, each choice of word depends only on the previous word. In this case, a random generator following this model might spit out “dear”, then “sir”, then “william/walter/thomas/thomas’s”, by following each word to the most common words that follow it. To make the visualization interpretable, we chose to show only the most common word to word connections, but one could imagine an enormous graph representing all connections that occur in the text. [source](https://www.tidytextmining.com/ngrams.html)
+
+### Next steps
+
+Here I disregard to show trigrams due to the limitation of this paper, as it do not show any important information at that phase. (Although we can found the "happy mother's day" token for example, which is clearly identifiable on the bigram chart above, on the left bottom part, but it's just funny and not important.)
+
+We have a solid base of further model development with this sample and tokenized data frames. However we should remove some further expressions (eg. "rt"). We also have to consider some optimization as we made the process more complicated than it needed.
+
+After that I'll check the unknown word's problem (ie. words that not occurs in the sample).
+
+If I finish all of that, you'll meet my Shiny App soon! I count on you. Thank you.

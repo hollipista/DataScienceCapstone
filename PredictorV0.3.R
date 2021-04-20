@@ -242,15 +242,15 @@ TG$prob = (TG$n - discount_value)/TG$n_w12_bg + discount_value/TG$n_w12_bg*TG$n_
 TG$prob <- ifelse(TG$prob > 1, 1, TG$prob)
 
 ### pruning
-TG <- TG %>% 
+TG2 <- TG %>% 
   group_by(word1, word2) %>%
   select(-c(n,n_w12_bg,n_w12_tg,nw23_bg_prob)) %>%
-  filter(prob == max(prob)) 
+  filter(prob == max(prob,na.rm=TRUE)) 
 
 BG <- BG %>% 
   group_by(word1) %>%
   select(-c(n,n_w1_ug,n_w1_bg,n_w2_ug_prob)) %>%
-  filter(prob == max(prob))
+  filter(prob == max(prob),na.rm=TRUE)
 
 UG <- UG %>% 
   select(-n) %>%
@@ -299,11 +299,22 @@ predict_tri <- function(w1, w2) {
 
 getWords <- function(str){
   inputText <- tibble(text = str)
-  LastBG <- mutate(inputText, text = gsub(x = text, 
-    pattern = "[0-9]+|(?!')[[:punct:]]|\\(.*\\)", 
-    replacement = "", perl=TRUE)) %>%
-    unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
-    slice_tail(n = 1) %>%
-    separate(bigram, c("w1", "w2"), sep = " ")
-    predict_tri(as.character(LastBG[1]),as.character(LastBG[2]))
+  if (length(grep("\\s[a-zA-Z]", str))>0){
+    LastBG <- mutate(inputText, text = gsub(x = text, 
+      pattern = "[0-9]+|(?!')[[:punct:]]|\\(.*\\)|\\s$", 
+      replacement = "", perl=TRUE)) %>%
+      unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+      slice_tail(n = 1) %>%
+      separate(bigram, c("w1", "w2"), sep = " ")
+      predict_tri(as.character(LastBG[1]),as.character(LastBG[2]))
+  }
+  else{
+    LastBG <- mutate(inputText, text = gsub(x = text, 
+      pattern = "[0-9]+|(?!')[[:punct:]]|\\(.*\\)|\\s$", 
+      replacement = "", perl=TRUE))
+    predict_bi(as.character(LastBG[1]))
+  }
 }
+
+getWords("")
+predict_bi("you")

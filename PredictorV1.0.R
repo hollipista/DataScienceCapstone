@@ -43,13 +43,21 @@ predict_tri <- function(w1, w2) {
 
 getWords <- function(str){
   inputText <- tibble(text = str)
-  LastBG <- mutate(inputText, text = gsub(x = text, 
-                                          pattern = "[0-9]+|(?!')[[:punct:]]|\\(.*\\)", 
-                                          replacement = "", perl=TRUE)) %>%
-    unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
-    slice_tail(n = 1) %>%
-    separate(bigram, c("w1", "w2"), sep = " ")
-  predict_tri(as.character(LastBG[1]),as.character(LastBG[2]))
+  if (length(grep("\\s[a-zA-Z]", str))>0){
+    LastBG <- mutate(inputText, text = gsub(x = text, 
+                                            pattern = "[0-9]+|(?!')[[:punct:]]|\\(.*\\)|\\s$", 
+                                            replacement = "", perl=TRUE)) %>%
+      unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+      slice_tail(n = 1) %>%
+      separate(bigram, c("w1", "w2"), sep = " ")
+    predict_tri(as.character(LastBG[1]),as.character(LastBG[2]))
+  }
+  else{
+    LastBG <- mutate(inputText, text = gsub(x = text, 
+                                            pattern = "[0-9]+|(?!')[[:punct:]]|\\(.*\\)|\\s$", 
+                                            replacement = "", perl=TRUE))
+    predict_bi(as.character(LastBG[1]))
+  }
 }
 
 getWords("what do you")

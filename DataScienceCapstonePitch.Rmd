@@ -1,0 +1,77 @@
+---
+title: "Data Science Capstone - Final Project"
+subtitle: "Marco… Polo!"
+author: "holliPista"
+date: '2021 04 22 '
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Project Summary
+
+<font size="5">What is this about? Here you can try my text predictor Shiny App made for Data 
+Science Capstone Project on Coursera (JHU).
+
+Steps of this project were
+
+1. To get to know the basics of Natural Language Processing concepts and method and
+a source/sample corpora (which is actually the plural of corpus :-) ) You can see
+my milestone report [here.](https://rpubs.com/hollipista/DataScienceCapstoneMilestoneReport)
+
+2. Develop a prediction algorithm that try to predict of next word of any given sentence/string
+
+3. Build a Shiny App which makes it available to everybody (here is the link)
+
+4. Present the project with a short Markdown presentation (which you read actually)</font>
+
+
+## Some words about n-grams - what is my model doing?
+
+<font size="5">Despite my efforts, as it was just a small project, the results are far from an ideal
+model and I learned the most about the limits of my approach. Please take it as a 
+play around the topic.
+
+I've used the n-grams method (to be exact I used 3,2,1-grams). This means I splitted the 
+source data (training set) into 3 long and 2 long word combinations and single words. Based
+on the frequency/probability of this co-occurrence we can guess the next word of any text.
+
+Let me have an example! You say that "My favorite town is New..." than I can guess the next word is 
+"York". But it could be "Hampshire" as well. My algorithm try to find the word that has the
+most probability. That's the MARCO ... POLO!</font>
+
+## Accuracy
+
+<font size="4">After the first test of my algorithm I found that there are a lot of expressions/combinations
+that my model can't predict due to the limited sample of the corpus. The original model was
+feed with the 1% of the sample data and when I tried to use more of the texts I reached my
+computer's memory limit soon. At this point a had an idea:
+
+"I have more time than memory, I can process the corpus in slices and then aggregate it!"
+
+With this method I was able to process the whole corpus, what's more I involved an additional
+corpus ([20 News](http://qwone.com/~jason/20Newsgroups/)). In the final dataset I used 1 million
+trigrams and 1 million bigrams. You can find some details in the Shiny Apps description.
+
+Finally I validated the accuracy on a 1000 sample of [COCA](https://www.ngrams.info/coca/samples/coca_ngrams_x3w.txt) trigrams. The result is:
+
+- the algorithm hits the 3rd word of trigrams in 15,0%
+- but if we weight the trigrams with their frequency, the efficiency is 27,3%
+
+I think using trigrams definitely not enough, there is place for improvement with usage of 4-5-grams.</font>
+
+## THE SHINY APP & ITS USER INTERFACE
+
+<font size="4">Here is a screenshot of my App that you can find the [following link](https://hollipista.shinyapps.io/MarcoPolo/)
+
+The usage is very straightforward: just start to type your text into the first box and the 
+algorithm try to predict the next word in the box under that. You can find some further
+details of the project on the site of app.</font>
+
+<center>![](shinyappscreen.png){width=70%}</center>
+
+<center>Thank you!</center>
+
+

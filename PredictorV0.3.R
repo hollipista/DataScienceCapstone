@@ -242,7 +242,7 @@ TG$prob = (TG$n - discount_value)/TG$n_w12_bg + discount_value/TG$n_w12_bg*TG$n_
 TG$prob <- ifelse(TG$prob > 1, 1, TG$prob)
 
 ### pruning
-TG2 <- TG %>% 
+TG <- TG %>% 
   group_by(word1, word2) %>%
   select(-c(n,n_w12_bg,n_w12_tg,nw23_bg_prob)) %>%
   filter(prob == max(prob,na.rm=TRUE)) 
@@ -317,4 +317,4 @@ getWords <- function(str){
 }
 
 getWords("")
-predict_bi("you")
+predict_bi("who")

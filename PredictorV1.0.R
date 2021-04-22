@@ -3,6 +3,7 @@ library(tibble)
 library(dplyr)
 library(tidytext)
 library(tidyr)
+set.seed(1984)
 
 #############
 
@@ -61,3 +62,15 @@ getWords <- function(str){
 }
 
 getWords("what do you")
+
+# TEST
+testdata<-read.csv("testdata.csv",sep=";")
+colnames(testdata)[1] <- "fre"
+
+testdatasample<-sample_n(testdata,1000)
+for (i in 1:1000){
+  testdatasample$pred[i]<-(getWords(testdatasample$bgtpred[i]))
+  print(i)
+}
+
+write.csv(testdatasample,"testdatasample.csv", row.names = FALSE)

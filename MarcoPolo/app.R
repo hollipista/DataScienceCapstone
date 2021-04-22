@@ -41,7 +41,7 @@ predict_tri <- function(w1, w2) {
 }
 
 getWords <- function(str){
-    inputText <- tibble(text = str)
+    inputText <- tibble(text = tolower(str))
     if (length(grep("\\s[a-zA-Z]", str))>0){
         LastBG <- mutate(inputText, text = gsub(x = text, 
                                                 pattern = "[0-9]+|(?!')[[:punct:]]|\\(.*\\)|\\s$", 
@@ -66,17 +66,17 @@ ui <- fluidPage(theme = shinytheme("slate"),
     ),
     
     titlePanel(
-        h2("Marco… Polo! - What is this about?", align="center")
+        h2("Marco… Polo!", align="center")
     ),
     
     tags$br(),
     
-    tags$h5("Here you can try my text predictor Shiny App made for Data Science 
+    tags$h5("What is this about? Here you can try my text predictor Shiny App made for Data Science 
             Capstone Project on Coursera (JHU)."),
     tags$h5("In the last couple of weeks I've built a predictive model and a web
-            application. This model try to predict the next word of any given string - 
-            that’s called text prediction. Let try it! Enter any text in English 
-            and see how the app try to find out your next word!"),
+            application. This model tries to predict the next word of any given string - 
+            that’s called text prediction. Let's try it! Enter any text in English 
+            and see how the app tries to find out your next word!"),
     
     tags$br(),
 
@@ -92,8 +92,8 @@ ui <- fluidPage(theme = shinytheme("slate"),
     tags$h5("Let me say some words about my model and the progression I've done 
             from the first Milestone Report, that you can find"),
     tags$a(href="https://rpubs.com/hollipista/DataScienceCapstoneMilestoneReport", "HERE (click!)"),
-    tags$h5("I was not satisfied with the accuracy of my first model. There was a lot of trigrams
-            that was not occur in my corpus - due to limited sample size. So I decided to extend the
+    tags$h5("I was not satisfied with the accuracy of my first model. There were a lot of trigrams
+            that were not occur in my corpus - due to limited sample size. So I decided to extend the
             corpus as large as I can. I reached the limits in terms of memory very soon but I thought 
             I have more time than memory: I tried to split the input texts to slices and process 
             them as a sequence and summarize after that. Whit this approach I was able to process 
@@ -116,7 +116,9 @@ ui <- fluidPage(theme = shinytheme("slate"),
             case it means the last two tokens/words) but if there are no enought evidence, it 
             cuts back a word (so predict based on the last word). "),
     tags$br(),
-    tags$h5("Please do not forget that it was just a play around of text prediction ;-)"),
+    tags$h5("Please do not forget that it was just a play around of text prediction ;-) As
+            you've seen my model is very simple and knows nothing about syntax or semantic,
+            it's a simple model based on the occurance and order of words."),
     tags$br(),
     tags$h5("I would like to say thanks for Thiloshon Nagarajah, John O. Bonsak, Qiong Wu and Igor Hut
             for the their very informative and useful publications."),
